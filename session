@@ -1,0 +1,80 @@
+#!/bin/sh
+# shellcheck disable=1090
+
+set -u
+# set -x
+
+printf '%s' "$(ps -p 1 -o comm=)" | grep -q 'systemd' && : "${XDG_RUNTIME_DIR:="/run/user/$(id -u)"}"
+: "${XDG_RUNTIME_DIR:="/tmp"}"
+
+: "${SESSION_HOME:="${XDG_RUNTIME_DIR}/session"}"
+
+info() {
+  printf >&2 'session: %s\n' "${1}"
+}
+
+session_name=
+while :; do
+    case $1 in
+        -v|--verbose)
+            verbose=$((verbose + 1)) # Each -v argument adds 1 to verbosity.
+            ;;
+        -s|--name)
+            shift
+            [ -n "${1-}" ] || { info 'ERROR: session name is empty or not provided' && exit 1; }
+            session_name="${1}"
+            ;;
+        --)              # End of all options.
+            shift
+            break
+            ;;
+        -?*)
+            info 'ERROR: unknown option: %s\n' "${1}" >&2
+            exit 1
+            ;;
+        *) break ;;
+    esac
+    shift
+done
+
+[ -n "${session_name:-}" ] || { info 'ERROR: session name not provided; see usage' && exit 1; }
+
+session_current_home="${SESSION_HOME}/${session_name}"
+session_current_envfile="${session_current_home}/environ"
+session_current_lockfile="${session_current_home}/lock"
+mkdir -p "${session_current_home}" || { info "ERROR: cannot create folder for the session name '${session_name}': file exists" && exit 1; }
+
+while :; do
+  case "${1}" in
+    set) 
+      shift
+      new_environment="$(
+        for key_value in "${@}"; do
+          # key="${key_value#*=}"
+          # value="${key_value%%=*}"
+          printf "%s\n" "${key_value}"
+        done
+      )"
+      old_environment="$(cat 2>/dev/null "${session_current_envfile}")"
+      while [ -f "${session_current_lockfile}" ]; do
+        sleep 0.05
+      done
+      touch "${session_current_lockfile}"
+      printf '%s\n%s' "${old_environment}" "${new_environment}" > "${session_current_envfile}"
+      rm "${session_current_lockfile}"
+      ;;
+    run) 
+      shift
+      while IFS= read -r line; do
+        # key="${key_value#*=}"
+        # value="${key_value%%=*}"
+        [ -n "${line}" ] || continue
+        # SC2163: This does not export 'line'. Remove $/${} for that, or use ${var?} to quiet.
+        # (was "${line}")
+        export "${line?}" 
+      done < "${session_current_envfile}"
+      sh -c "${*}"
+      ;;
+    *) break ;;
+  esac
+done
