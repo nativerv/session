@@ -12,6 +12,17 @@ info() {
   printf >&2 'session: %s\n' "${1}"
 }
 
+acquire_lock() {
+  while [ -f "${session_current_lockfile}" ]; do
+    sleep 0.05
+  done
+  touch "${session_current_lockfile}"
+}
+
+release_lock() {
+  rm "${session_current_lockfile}"
+}
+
 # parse (global) flags
 session_name=
 while :; do
@@ -51,19 +62,35 @@ while :; do
           printf "%s\n" "${key_value}"
         done
       )"
-      old_environment="$(cat 2>/dev/null "${session_current_envfile}")"
-      while [ -f "${session_current_lockfile}" ]; do
-        sleep 0.05
-      done
-      touch "${session_current_lockfile}"
-      printf '%s\n%s' "${old_environment}" "${new_environment}" > "${session_current_envfile}"
-      rm "${session_current_lockfile}"
+      acquire_lock
+      {
+        old_environment="$(cat 2>'/dev/null' "${session_current_envfile}")"
+        printf '%s\n%s' "${old_environment}" "${new_environment}" > "${session_current_envfile}"
+      }
+      release_lock
+      ;;
+    import)
+      shift
+
+      new_environment="$(
+        for variable_name in "${@}"; do
+          # DANGER: grep can treat input as regex, but we can't not have it because of ^.
+          key_value="$(env | grep "^${variable_name}=")"
+          [ -n "${key_value}" ] || continue
+          printf "%s" "${key_value}"
+        done
+      )"
+
+      acquire_lock
+      {
+        old_environment="$(cat 2>'/dev/null' "${session_current_envfile}")"
+        printf '%s\n%s' "${old_environment}" "${new_environment}" > "${session_current_envfile}"
+      }
+      release_lock
       ;;
     run) 
       shift
       while IFS= read -r line; do
-        # key="${key_value#*=}"
-        # value="${key_value%%=*}"
         [ -n "${line}" ] || continue
         # SC2163: This does not export 'line'. Remove $/${} for that, or use ${var?} to quiet.
         # (was "${line}")
