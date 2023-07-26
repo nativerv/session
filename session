@@ -88,6 +88,21 @@ while :; do
       }
       release_lock
       ;;
+    unset)
+      shift
+      new_environment="$(
+        while IFS= read -r key_value; do
+          for variable_name in "${@}"; do
+            printf '%s' "${key_value}" | grep -v "^${variable_name}="
+          done
+        done < "${session_current_envfile}"
+      )";
+      acquire_lock
+      {
+        printf '%s' "${new_environment}" > "${session_current_envfile}"
+      }
+      release_lock
+      ;;
     run) 
       shift
       while IFS= read -r line; do
