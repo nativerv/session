@@ -1,0 +1,4 @@
+#!/bin/sh
+
+tty="$(cat '/sys/class/tty/tty0/active')"
+session -s "${tty}" "${@}"
