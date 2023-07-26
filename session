@@ -77,7 +77,7 @@ while :; do
           # DANGER: grep can treat input as regex, but we can't not have it because of ^.
           key_value="$(env | grep "^${variable_name}=")"
           [ -n "${key_value}" ] || continue
-          printf "%s" "${key_value}"
+          printf "%s\n" "${key_value}"
         done
       )"
 
@@ -96,7 +96,7 @@ while :; do
         # (was "${line}")
         export "${line?}"
       done < "${session_current_envfile}"
-      sh -c "${*}"
+      sh -c "${*}" || exit 1
       ;;
     *) break ;;
   esac
