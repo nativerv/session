@@ -59,6 +59,7 @@ while :; do
       shift
       new_environment="$(
         for key_value in "${@}"; do
+          printf '%s' "${key_value}" | grep '=' || info "ERROR: invalid key=value pair: '${key_value}'" | exit 1
           printf "%s\n" "${key_value}"
         done
       )"
