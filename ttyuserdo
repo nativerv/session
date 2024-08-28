@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -u
+
+tty="$(cat '/sys/class/tty/tty0/active')"
+user="$(who | grep "${tty}" | awk '{ print $1 }')"
+
+[ -z "${tty}" ] && printf >&2 'ttyuserdo: tty not found\n' && exit 1
+[ -z "${user}" ] && printf >&2 'ttyuserdo: user not found\n' && exit 1
+
+sudo -u "${user}" sh -c "exec ${1}"
