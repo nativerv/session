@@ -15,7 +15,8 @@
     ];
   in {
     packages = forAllSystems (system: let
-      pkgs = import nixpkgs { inherit system; };
+      pkgs = nixpkgs.legacyPackages.${system};
+      inherit (pkgs) lib;
     in {
       default = self.packages.${system}.session;
       session = pkgs.stdenv.mkDerivation {
@@ -23,11 +24,25 @@
         pname = "session";
         src = ./.;
 
-        nativeBuildInputs = with pkgs; [ coreutils sudo gawk ];
+        nativeBuildInputs = with pkgs; [ makeWrapper ];
 
         installPhase = ''
           mkdir -p $out/bin
           install -t $out/bin -m 755 session ttyuserdo sessiontty
+        '';
+
+        postFixup = with pkgs; ''
+          for bin in $out/bin/*; do
+            wrapProgram $bin \
+              --suffix PATH : ${lib.makeBinPath [
+                coreutils
+                sudo
+                gawk
+                gnugrep
+                bash
+                procps
+              ]}
+          done
         '';
       };
     });
