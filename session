@@ -64,6 +64,7 @@ session_current_home="${SESSION_HOME}/${session_name}"
 session_current_envfile="${session_current_home}/environ"
 session_current_lockfile="${session_current_home}/lock"
 mkdir -p "${session_current_home}" || { info "ERROR: cannot create folder for the session name '${session_name}': file exists" && exit 1; }
+touch "${session_current_envfile}" || { info "ERROR: cannot ensure env file for the session name '${session_name}'" && exit 1; }
 
 # parse subcommands
 case "${1}" in
